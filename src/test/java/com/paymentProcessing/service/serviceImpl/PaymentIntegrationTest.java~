@@ -41,7 +41,7 @@ public class PaymentIntegrationTest {
         parentRepository.deleteAll();
         studentRepository.deleteAll();
 
-
+        // Creating Parents
         Parent parentA = new Parent();
         parentA.setName("Parent A");
         parentA.setBalance(BigDecimal.valueOf(1000));
@@ -56,7 +56,7 @@ public class PaymentIntegrationTest {
         parentBId = parentB.getId();
         BigDecimal initialParentBBalance = parentB.getBalance();
 
-
+        // Creating Students
         Student student1 = new Student();
         student1.setName("Student 1");
         student1.setBalance(BigDecimal.ZERO);
@@ -86,13 +86,15 @@ public class PaymentIntegrationTest {
     @WithMockUser(username = "admin", roles = {"ADMIN"})
     void testPaymentForUniqueStudent() throws Exception {
         BigDecimal paymentAmount = BigDecimal.valueOf(100);
-        BigDecimal feeOrDiscountRate = BigDecimal.valueOf(0.1);
+        BigDecimal feeOrDiscountRate = BigDecimal.valueOf(0.1); // 10%
+
         PaymentRequest request = new PaymentRequest();
         request.setParentId(parentAId);
-        request.setStudentId(student2Id);
+        request.setStudentId(student2Id); // Unique child
         request.setPaymentAmount(paymentAmount);
         request.setFeeOrDiscountRate(feeOrDiscountRate);
 
+        // Get former balances before payment
         Parent parentA = parentRepository.findById(parentAId).orElseThrow();
         Student student2 = studentRepository.findById(student2Id).orElseThrow();
         BigDecimal formerParentABalance = parentA.getBalance();
@@ -103,6 +105,7 @@ public class PaymentIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
 
+        // Get new balances after payment
         Parent updatedParentA = parentRepository.findById(parentAId).orElseThrow();
         Student updatedStudent2 = studentRepository.findById(student2Id).orElseThrow();
 
@@ -110,12 +113,15 @@ public class PaymentIntegrationTest {
         BigDecimal expectedParentABalance = formerParentABalance.subtract(expectedAdjustedAmount);
         BigDecimal expectedStudent2Balance = formerStudent2Balance.add(expectedAdjustedAmount);
 
+        // Assert the real balance of Parent A and Student 2
         assertEquals(0, expectedParentABalance.compareTo(updatedParentA.getBalance()), "Parent A balance should be reduced correctly");
         assertEquals(0, expectedStudent2Balance.compareTo(updatedStudent2.getBalance()), "Student 2 balance should be increased correctly");
 
+        // Assert the balances are updated in the database correctly
         Parent actualParentA = parentRepository.findById(parentAId).orElseThrow();
         Student actualStudent2 = studentRepository.findById(student2Id).orElseThrow();
 
+        // Output the former and new balances for debugging or validation
         System.out.println("Parent A: Former Balance = " + formerParentABalance + ", New Balance = " + actualParentA.getBalance());
         System.out.println("Student 2: Former Balance = " + formerStudent2Balance + ", New Balance = " + actualStudent2.getBalance());
 
@@ -127,14 +133,15 @@ public class PaymentIntegrationTest {
     @WithMockUser(username = "admin", roles = {"ADMIN"})
     void testPaymentForSharedStudent() throws Exception {
         BigDecimal paymentAmount = BigDecimal.valueOf(100);
-        BigDecimal feeOrDiscountRate = BigDecimal.valueOf(0.1);
+        BigDecimal feeOrDiscountRate = BigDecimal.valueOf(0.1); // 10%
 
         PaymentRequest request = new PaymentRequest();
         request.setParentId(parentAId);
-        request.setStudentId(student1Id);
+        request.setStudentId(student1Id); // Shared child
         request.setPaymentAmount(paymentAmount);
         request.setFeeOrDiscountRate(feeOrDiscountRate);
 
+        // Get former balances before payment
         Parent parentA = parentRepository.findById(parentAId).orElseThrow();
         Parent parentB = parentRepository.findById(parentBId).orElseThrow();
         Student student1 = studentRepository.findById(student1Id).orElseThrow();
@@ -147,6 +154,7 @@ public class PaymentIntegrationTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
 
+        // Get new balances after payment
         Parent updatedParentA = parentRepository.findById(parentAId).orElseThrow();
         Parent updatedParentB = parentRepository.findById(parentBId).orElseThrow();
         Student updatedStudent1 = studentRepository.findById(student1Id).orElseThrow();
@@ -157,14 +165,17 @@ public class PaymentIntegrationTest {
         BigDecimal expectedParentBBalance = formerParentBBalance.subtract(expectedAdjustedAmount);
         BigDecimal expectedStudent1Balance = formerStudent1Balance.add(expectedAdjustedAmount);
 
+        // Assert the real balance of Parent A, Parent B, and Student 1
         assertEquals(0, expectedParentABalance.compareTo(updatedParentA.getBalance()), "Parent A balance should be reduced correctly");
         assertEquals(0, expectedParentBBalance.compareTo(updatedParentB.getBalance()), "Parent B balance should be reduced correctly");
         assertEquals(0, expectedStudent1Balance.compareTo(updatedStudent1.getBalance()), "Shared Student balance should be updated correctly");
 
+        // Assert the balances are updated in the database correctly
         Parent actualParentA = parentRepository.findById(parentAId).orElseThrow();
         Parent actualParentB = parentRepository.findById(parentBId).orElseThrow();
         Student actualStudent1 = studentRepository.findById(student1Id).orElseThrow();
 
+        // Output the former and new balances for debugging or validation
         System.out.println("Parent A: Former Balance = " + formerParentABalance + ", New Balance = " + actualParentA.getBalance());
         System.out.println("Parent B: Former Balance = " + formerParentBBalance + ", New Balance = " + actualParentB.getBalance());
         System.out.println("Student 1: Former Balance = " + formerStudent1Balance + ", New Balance = " + actualStudent1.getBalance());
@@ -180,7 +191,7 @@ public class PaymentIntegrationTest {
     @WithMockUser(username = "user", roles = {"USER"})
     void testPaymentForNonAdminUser() throws Exception {
         BigDecimal paymentAmount = BigDecimal.valueOf(100);
-        BigDecimal feeOrDiscountRate = BigDecimal.valueOf(0.1);
+        BigDecimal feeOrDiscountRate = BigDecimal.valueOf(0.1); 
 
         PaymentRequest request = new PaymentRequest();
         request.setParentId(parentAId);

@@ -30,7 +30,6 @@ public class PaymentServiceImpl implements PaymentService {
     private final StudentService studentService;
     private final PaymentMapper paymentMapper;
 
-
     @Autowired
     public PaymentServiceImpl(PaymentRepository paymentRepository,
                               ParentService parentService,
@@ -54,37 +53,37 @@ public class PaymentServiceImpl implements PaymentService {
             Student student = studentService.getStudentById(paymentRequest.getStudentId())
                     .orElseThrow(() -> new StudentNotFoundException(paymentRequest.getStudentId()));
 
-            BigDecimal adjustedAmount = paymentRequest.getPaymentAmount()
-                    .multiply(BigDecimal.ONE.add(paymentRequest.getFeeOrDiscountRate()));
+            BigDecimal adjustedAmount = safe(paymentRequest.getPaymentAmount())
+                    .multiply(BigDecimal.ONE.add(safe(paymentRequest.getFeeOrDiscountRate())));
 
-            logger.info("Adjusted payment amount with rate {}: {}", paymentRequest.getFeeOrDiscountRate(), adjustedAmount);
-
-
-            student.setBalance(student.getBalance().add(adjustedAmount));
-            studentService.saveStudent(student);
-
-
-            parent.setBalance(parent.getBalance().subtract(adjustedAmount));
-            parentService.saveParent(parent);
-
+            student.setBalance(safe(student.getBalance()).add(safe(adjustedAmount)));
+            parent.setBalance(safe(parent.getBalance()).subtract(safe(adjustedAmount)));
 
             if (student.getParents().size() > 1) {
                 for (Parent otherParent : student.getParents()) {
                     if (!otherParent.equals(parent)) {
-                        otherParent.setBalance(otherParent.getBalance().subtract(adjustedAmount));
+                        otherParent.setBalance(safe(otherParent.getBalance()).subtract(safe(adjustedAmount)));
                         parentService.saveParent(otherParent);
-                        logger.info("Shared parent balance updated: {}", otherParent.getId());
                     }
                 }
             }
 
-
-            Payment payment = paymentMapper.paymentRequestToPayment(paymentRequest, student, parent);
+            Payment payment = paymentMapper.paymentRequestToPayment(paymentRequest.getPaymentAmount(), student, parent);
             paymentRepository.save(payment);
 
             logger.info("Payment processed successfully: PaymentId={}", payment.getId());
 
-            return paymentMapper.paymentToPaymentResponse(payment);
+
+//            PaymentResponse paymentResponse = paymentMapper.paymentToPaymentResponse(payment);
+            PaymentResponse paymentResponse = new PaymentResponse();
+            paymentResponse.setAdjustedAmount(adjustedAmount);
+            paymentResponse.setPaymentId(payment.getId());
+            paymentResponse.setParentName(parent.getName());
+            paymentResponse.setStudentName(student.getName());
+            paymentResponse.setUpdatedStudentBalance(student.getBalance());
+            paymentResponse.setUpdatedParentBalance(parent.getBalance());
+
+            return paymentResponse;
 
         } catch (Exception e) {
             logger.error("Payment failed for Parent={}, Student={}, Error={}",
@@ -92,5 +91,10 @@ public class PaymentServiceImpl implements PaymentService {
             throw e;
         }
     }
+
+    private BigDecimal safe(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
 
 }

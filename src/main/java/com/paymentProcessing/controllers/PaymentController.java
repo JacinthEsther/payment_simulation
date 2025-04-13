@@ -19,7 +19,7 @@ public class PaymentController {
     private final PaymentService paymentService;
     private static final Logger logger = LoggerFactory.getLogger(PaymentController.class);
 
-    @PostMapping
+    @PostMapping("/process")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PaymentResponse> processPayment(@RequestBody PaymentRequest request) {
         logger.info("Processing payment for parent {} and student {}", request.getParentId(), request.getStudentId());

@@ -23,6 +23,7 @@ public class StudentServiceImpl implements StudentService {
         return studentRepository.findById(studentId);
     }
 
+    // todo endpoint to get student and parent balance, get all payments
     @Override
     public Student saveStudent(Student student) {
         return studentRepository.save(student);
